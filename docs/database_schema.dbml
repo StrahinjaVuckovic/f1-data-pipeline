@@ -1,0 +1,87 @@
+// F1 Data Engineering Project - Star Schema
+
+Table dim_status {
+  status_id int [primary key]
+  status varchar
+}
+
+Table dim_circuit {
+  circuit_id int [primary key]
+  circuit_ref varchar
+  circuit_name varchar
+  location varchar
+  country varchar
+  lat float
+  lng float
+  alt float
+  url text
+}
+
+Table dim_constructor {
+  constructor_id int [primary key]
+  constructor_ref varchar
+  constructor_name varchar
+  nationality varchar
+  url text
+}
+
+Table dim_driver {
+  driver_id int [primary key]
+  driver_ref varchar
+  number varchar
+  code varchar
+  forename varchar
+  surname varchar
+  dob date
+  nationality varchar
+  url text
+}
+
+Table dim_race {
+  race_id int [primary key]
+  circuit_id int [not null]
+  year int
+  round int
+  race_name varchar
+  date date
+  time varchar
+  url text
+  fp1_date date
+  fp1_time varchar
+  fp2_date date
+  fp2_time varchar
+  fp3_date date
+  fp3_time varchar
+  quali_date date
+  quali_time varchar
+  sprint_date date
+  sprint_time varchar
+}
+
+Table fact_results {
+  result_id int [primary key]
+  race_id int [not null]
+  driver_id int [not null]
+  constructor_id int [not null]
+  status_id int [not null]
+  number int [not null]
+  grid int [not null]
+  position float
+  position_text varchar
+  position_order int
+  points float
+  laps int
+  time varchar
+  milliseconds float
+  fastest_lap int
+  rank int
+  fastest_lap_time varchar
+  fastest_lap_speed float
+}
+
+Ref: fact_results.race_id > dim_race.race_id
+Ref: fact_results.driver_id > dim_driver.driver_id
+Ref: fact_results.constructor_id > dim_constructor.constructor_id
+Ref: fact_results.status_id > dim_status.status_id
+
+Ref: dim_race.circuit_id > dim_circuit.circuit_id
