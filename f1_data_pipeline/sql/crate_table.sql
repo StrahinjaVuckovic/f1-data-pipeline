@@ -1,11 +1,25 @@
-
+DROP TABLE IF EXISTS fact_pit_stops CASCADE;
+DROP TABLE IF EXISTS fact_lap_times CASCADE;
 DROP TABLE IF EXISTS fact_results CASCADE;
 DROP TABLE IF EXISTS dim_race CASCADE;
 DROP TABLE IF EXISTS dim_driver CASCADE;
 DROP TABLE IF EXISTS dim_constructor CASCADE;
 DROP TABLE IF EXISTS dim_circuit CASCADE;
 DROP TABLE IF EXISTS dim_status CASCADE;
+DROP TABLE IF EXISTS dim_date CASCADE;
 
+CREATE TABLE dim_date (
+    date_id INT PRIMARY KEY,
+    full_date DATE NOT NULL,
+    year INT,
+    quarter INT,
+    month INT,
+    month_name VARCHAR(20),
+    day INT,
+    day_of_week INT,
+    day_name VARCHAR(20),
+    is_weekend BOOLEAN
+);
 
 CREATE TABLE dim_status (
     status_id INT PRIMARY KEY,
@@ -47,6 +61,7 @@ CREATE TABLE dim_driver (
 CREATE TABLE dim_race (
     race_id INT PRIMARY KEY,
     circuit_id INT,
+    date_id INT, 
     year INT,
     round INT,
     race_name VARCHAR(255),
@@ -63,9 +78,9 @@ CREATE TABLE dim_race (
     quali_time VARCHAR(50),
     sprint_date DATE,
     sprint_time VARCHAR(50),
-    CONSTRAINT fk_race_circuit FOREIGN KEY (circuit_id) REFERENCES dim_circuit(circuit_id)
+    CONSTRAINT fk_race_circuit FOREIGN KEY (circuit_id) REFERENCES dim_circuit(circuit_id),
+    CONSTRAINT fk_race_date FOREIGN KEY (date_id) REFERENCES dim_date(date_id)
 );
-
 
 CREATE TABLE fact_results (
     result_id INT PRIMARY KEY,
@@ -90,4 +105,29 @@ CREATE TABLE fact_results (
     CONSTRAINT fk_fact_driver FOREIGN KEY (driver_id) REFERENCES dim_driver(driver_id),
     CONSTRAINT fk_fact_constructor FOREIGN KEY (constructor_id) REFERENCES dim_constructor(constructor_id),
     CONSTRAINT fk_fact_status FOREIGN KEY (status_id) REFERENCES dim_status(status_id)
+);
+
+CREATE TABLE fact_lap_times (
+    lap_time_id INT PRIMARY KEY,
+    race_id INT NOT NULL,
+    driver_id INT NOT NULL,
+    lap INT NOT NULL,
+    position INT,
+    time VARCHAR(50),
+    milliseconds FLOAT,
+    CONSTRAINT fk_lap_race FOREIGN KEY (race_id) REFERENCES dim_race(race_id),
+    CONSTRAINT fk_lap_driver FOREIGN KEY (driver_id) REFERENCES dim_driver(driver_id)
+);
+
+CREATE TABLE fact_pit_stops (
+    pit_stop_id INT PRIMARY KEY,
+    race_id INT NOT NULL,
+    driver_id INT NOT NULL,
+    stop INT NOT NULL,           
+    lap INT NOT NULL,            
+    time VARCHAR(50),          
+    duration VARCHAR(50),        
+    milliseconds FLOAT,
+    CONSTRAINT fk_pit_race FOREIGN KEY (race_id) REFERENCES dim_race(race_id),
+    CONSTRAINT fk_pit_driver FOREIGN KEY (driver_id) REFERENCES dim_driver(driver_id)
 );
