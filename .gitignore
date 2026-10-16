@@ -12,3 +12,8 @@ env/
 
 .DS_Store
 Thumbs.db
+
+.env
+airflow/logs/
+airflow/config/
+airflow/plugins/
