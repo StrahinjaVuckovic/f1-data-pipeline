@@ -15,5 +15,6 @@ Thumbs.db
 
 .env
 airflow/logs/
-airflow/config/
+airflow/config/airflow.cfg
+!airflow/config/settings.py
 airflow/plugins/
