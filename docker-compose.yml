@@ -12,6 +12,7 @@ x-airflow-common:
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    AIRFLOW_CONN_POSTGRES_DEFAULT: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@f1_postgres:${POSTGRES_PORT}/${POSTGRES_DB}'
     POSTGRES_HOST: f1_postgres
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/airflow/dags:/opt/airflow/dags
@@ -19,6 +20,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/airflow/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/airflow/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
+    - ${AIRFLOW_PROJ_DIR:-.}/f1_data_pipeline:/opt/airflow/f1_data_pipeline
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -39,6 +41,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./f1_data_pipeline/sql/crate_table.sql:/docker-entrypoint-initdb.d/01_crate_table.sql
     networks:
       - f1_network
 
