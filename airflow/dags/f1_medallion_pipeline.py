@@ -9,6 +9,7 @@ if AIRFLOW_HOME not in sys.path:
 
 from f1_data_pipeline.bronze_ingestion import ingest_bronze_data
 from f1_data_pipeline.silver_transformations import transform_silver_layer
+from f1_data_pipeline.gold_transformations import transform_gold_layer
 
 default_args = {
     'owner': 'f1_data_engineer',
@@ -34,7 +35,10 @@ def f1_medallion_pipeline():
     @task()
     def transform_silver():
         transform_silver_layer()
+    @task()
+    def transform_gold():
+        transform_gold_layer()
 
-    ingest_bronze() >> transform_silver()
+    ingest_bronze() >> transform_silver() >> transform_gold()
 
 f1_pipeline_dag = f1_medallion_pipeline()

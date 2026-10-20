@@ -36,24 +36,27 @@ def truncate_silver_tables(engine, logger) -> None:
 
 
 def load_silver_date(engine, logger) -> None:
-    logger.info("Populating silver.date")
+    logger.info("Populating silver.date (Generating full calendar 1950-2030)")
     query = """
     INSERT INTO silver.date (
         date_id, full_date, year, quarter, month, month_name, day, day_of_week, day_name, is_weekend
     )
-    SELECT DISTINCT
-        TO_CHAR("date"::DATE, 'YYYYMMDD')::INT AS date_id,
-        "date"::DATE AS full_date,
-        EXTRACT(YEAR FROM "date"::DATE)::INT AS year,
-        EXTRACT(QUARTER FROM "date"::DATE)::INT AS quarter,
-        EXTRACT(MONTH FROM "date"::DATE)::INT AS month,
-        TO_CHAR("date"::DATE, 'Month') AS month_name,
-        EXTRACT(DAY FROM "date"::DATE)::INT AS day,
-        EXTRACT(ISODOW FROM "date"::DATE)::INT AS day_of_week,
-        TO_CHAR("date"::DATE, 'Day') AS day_name,
-        CASE WHEN EXTRACT(ISODOW FROM "date"::DATE) IN (6, 7) THEN TRUE ELSE FALSE END AS is_weekend
-    FROM bronze.raw_f1_data
-    WHERE "date" IS NOT NULL AND "date" != '\\N'
+    SELECT 
+        TO_CHAR(d, 'YYYYMMDD')::INT AS date_id,
+        d::DATE AS full_date,
+        EXTRACT(YEAR FROM d)::INT AS year,
+        EXTRACT(QUARTER FROM d)::INT AS quarter,
+        EXTRACT(MONTH FROM d)::INT AS month,
+        TO_CHAR(d, 'Month') AS month_name,
+        EXTRACT(DAY FROM d)::INT AS day,
+        EXTRACT(ISODOW FROM d)::INT AS day_of_week,
+        TO_CHAR(d, 'Day') AS day_name,
+        CASE WHEN EXTRACT(ISODOW FROM d) IN (6, 7) THEN TRUE ELSE FALSE END AS is_weekend
+    FROM generate_series(
+        '1950-01-01'::DATE, 
+        '2030-12-31'::DATE, 
+        '1 day'::INTERVAL
+    ) AS d
     ON CONFLICT (date_id) DO NOTHING;
     """
     execute_sql(engine, query)

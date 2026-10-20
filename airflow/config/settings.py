@@ -7,7 +7,8 @@ load_dotenv()
 
 
 def get_db_engine() -> Engine:
-    """Creates and returns a SQLAlchemy database engine using environment variables.
+    """
+    Creates and returns a SQLAlchemy database engine using environment variables.
     """
     user: str | None = os.getenv("POSTGRES_USER")
     password: str | None = os.getenv("POSTGRES_PASSWORD")
