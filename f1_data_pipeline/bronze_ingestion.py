@@ -3,6 +3,14 @@ import sys
 from datetime import datetime, timezone
 import pandas as pd
 from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
+load_dotenv()
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+from f1_data_pipeline.utils.logger import get_pipeline_logger
 
 def get_engine():
     """Gets database engine dynamically whether running in Airflow or locally."""
@@ -25,12 +33,15 @@ def ingest_bronze_data(file_path: str = "/opt/airflow/data/dataEngineeringDatase
     Extracts raw Formula 1 data from a CSV source file, adds technical ingestion 
     metadata, and dynamically loads it into the PostgreSQL bronze schema.
     """
-    print(f"[{datetime.now(timezone.utc)}] Starting Bronze layer ingestion process...")
+    logger = get_pipeline_logger("bronze_ingestion")
+    
+    logger.info("Starting Bronze layer ingestion process...")
 
     if not os.path.exists(file_path):
+        logger.error(f"Source CSV file not found at path: {file_path}")
         raise FileNotFoundError(f"Source CSV file not found at path: {file_path}")
 
-    print(f"Reading source file: {file_path}")
+    logger.info(f"Reading source file: {file_path}")
     df = pd.read_csv(file_path, low_memory=False)
 
     df["ingestion_timestamp"] = datetime.now(timezone.utc)
@@ -41,7 +52,7 @@ def ingest_bronze_data(file_path: str = "/opt/airflow/data/dataEngineeringDatase
     with engine.begin() as connection:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS bronze;"))
 
-    print("Writing raw data to database table 'bronze.raw_f1_data'...")
+    logger.info("Writing raw data to database table 'bronze.raw_f1_data'...")
     df.to_sql(
         name="raw_f1_data",
         con=engine,
@@ -51,7 +62,7 @@ def ingest_bronze_data(file_path: str = "/opt/airflow/data/dataEngineeringDatase
         chunksize=10000,
     )
 
-    print(f"[{datetime.now(timezone.utc)}] Bronze ingestion completed successfully! Total records loaded: {len(df)}")
+    logger.info(f"Bronze ingestion completed successfully! Total records loaded: {len(df)}")
 
 
 if __name__ == "__main__":

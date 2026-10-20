@@ -1,35 +1,40 @@
 import os
 import sys
 from datetime import datetime, timedelta
+from airflow.decorators import dag, task
 
-sys.path.append("/opt/airflow")
-
-from airflow import DAG
-from airflow.decorators import task
+AIRFLOW_HOME = os.getenv("AIRFLOW_HOME", "/opt/airflow")
+if AIRFLOW_HOME not in sys.path:
+    sys.path.append(AIRFLOW_HOME)
 
 from f1_data_pipeline.bronze_ingestion import ingest_bronze_data
+from f1_data_pipeline.silver_transformations import transform_silver_layer
 
 default_args = {
-    "owner": "airflow",
-    "depends_on_past": False,
-    "email_on_failure": False,
-    "email_on_retry": False,
-    "retries": 1,
-    "retry_delay": timedelta(minutes=5),
+    'owner': 'f1_data_engineer',
+    'depends_on_past': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
 }
 
-with DAG(
-    dag_id="f1_medallion_pipeline",
+@dag(
+    dag_id='f1_medallion_pipeline',
     default_args=default_args,
-    description="Formula 1 ETL Pipeline using Medallion Architecture (Bronze -> Silver -> Gold)",
-    schedule_interval="@daily",
     start_date=datetime(2026, 1, 1),
+    schedule_interval='@daily',
     catchup=False,
-    tags=["f1", "medallion"],
-) as dag:
+    tags=['f1', 'medallion', 'elt']
+)
+def f1_medallion_pipeline():
 
-    @task(task_id="ingest_bronze_layer")
-    def run_bronze_ingestion():
-        ingest_bronze_data(file_path="/opt/airflow/data/dataEngineeringDataset.csv")
+    @task()
+    def ingest_bronze():
+        ingest_bronze_data("/opt/airflow/data/dataEngineeringDataset.csv")
 
-    run_bronze_ingestion()
+    @task()
+    def transform_silver():
+        transform_silver_layer()
+
+    ingest_bronze() >> transform_silver()
+
+f1_pipeline_dag = f1_medallion_pipeline()
