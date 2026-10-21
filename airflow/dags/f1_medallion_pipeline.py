@@ -35,6 +35,7 @@ def f1_medallion_pipeline():
     @task()
     def transform_silver():
         transform_silver_layer()
+        
     @task()
     def transform_gold():
         transform_gold_layer()
