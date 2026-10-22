@@ -1,22 +1,21 @@
 import os
 import sys
-import time
 import json
-import pandas as pd
 from confluent_kafka import Producer
 
+# Set paths to the project root directory
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
 from f1_data_pipeline.utils.logger import get_pipeline_logger
+from f1_data_pipeline.utils.api_client import fetch_f1_data
 
 logger = get_pipeline_logger("kafka_producer")
 
 conf = {'bootstrap.servers': 'localhost:9092'}
 producer = Producer(conf)
-
-TOPIC_NAME = 'f1-raw-telemetry'
+TOPIC_NAME = 'f1-api-data'
 
 
 def delivery_report(err, msg):
@@ -24,40 +23,70 @@ def delivery_report(err, msg):
     if err is not None:
         logger.error(f"Message delivery failed: {err}")
     else:
-        logger.info(f"Message delivered to {msg.topic()} [{msg.partition()}] at offset {msg.offset()}")
+        logger.debug(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 
-def run_producer(file_path: str = None, limit_rows: int = 20) -> None:
-    if file_path is None:
-        file_path = os.path.join(ROOT_DIR, "data", "dataEngineeringDataset.csv")
+def produce_api_data_to_kafka(endpoint: str, limit: int = 100) -> None:
+    """Fetches ALL data from the API using pagination and sends it to Kafka."""
+    offset = 0
+    total_sent = 0
+    
+    logger.info(f"Starting pagination for endpoint: '{endpoint}' with limit={limit}")
 
-    if not os.path.exists(file_path):
-        logger.error(f"File not found at path: {file_path}")
-        return
+    while True:
+        logger.info(f"Fetching data for '{endpoint}' (offset={offset})...")
+        records = fetch_f1_data(endpoint=endpoint, limit=limit, offset=offset)
 
-    logger.info(f"Loading CSV file from: {file_path}")
-    df = pd.read_csv(file_path, nrows=limit_rows)
+        if not records:
+            logger.info(f"No more data found for '{endpoint}'. Pagination finished.")
+            break
 
-    logger.info(f"Starting message streaming to topic '{TOPIC_NAME}'...")
+        for record in records:
+            message_payload = {
+                "api_endpoint": endpoint,
+                "data": record
+            }
+            message_json = json.dumps(message_payload, default=str)
+            record_key = str(record.get("circuitId", record.get("driverId", record.get("raceId", endpoint))))
 
-    for index, row in df.iterrows():
-        message_data = row.to_dict()
-        message_json = json.dumps(message_data, default=str)
+            producer.produce(
+                topic=TOPIC_NAME,
+                key=record_key.encode('utf-8'),
+                value=message_json.encode('utf-8'),
+                callback=delivery_report
+            )
+            producer.poll(0)
 
-        producer.produce(
-            topic=TOPIC_NAME,
-            key=str(index),
-            value=message_json.encode('utf-8'),
-            callback=delivery_report
-        )
-        producer.poll(0)
+        records_count = len(records)
+        total_sent += records_count
+        offset += limit
+        
+        logger.info(f"Successfully sent {records_count} records to Kafka. Total sent for '{endpoint}': {total_sent}")
 
-        logger.info(f"Simulating live telemetry: Sent row #{index + 1}")
-        time.sleep(1)  
+        if records_count < limit:
+            logger.info(f"Reached the last page for '{endpoint}'.")
+            break
 
     producer.flush()
-    logger.info("All test messages successfully sent to Kafka!")
+    logger.info(f"Completed '{endpoint}'. Total records sent: {total_sent}")
 
 
 if __name__ == '__main__':
-    run_producer()
+   
+    endpoints_to_ingest = [
+        "circuits", 
+        "constructors",
+        "drivers", 
+        "status", 
+        "2026/races",
+        "2026/1/results",  
+        "2026/1/laps",     
+        "2026/1/pitstops"  
+    ]
+    
+    logger.info("Starting Kafka API Producer (Full Pagination)...")
+    
+    for ep in endpoints_to_ingest:
+        produce_api_data_to_kafka(endpoint=ep, limit=50)
+        
+    logger.info("Kafka API Producer finished execution!")

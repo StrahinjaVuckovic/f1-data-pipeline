@@ -253,3 +253,13 @@ CREATE TABLE IF NOT EXISTS pit_stops (
     CONSTRAINT fk_pit_race FOREIGN KEY (race_id) REFERENCES race(race_id),
     CONSTRAINT fk_pit_driver FOREIGN KEY (driver_id) REFERENCES driver(driver_id)
 );
+
+CREATE SCHEMA IF NOT EXISTS bronze_api;
+
+CREATE TABLE IF NOT EXISTS bronze_api.raw_data (
+    id SERIAL PRIMARY KEY,
+    endpoint VARCHAR(255) NOT NULL,
+    api_payload JSONB NOT NULL,
+    is_processed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
