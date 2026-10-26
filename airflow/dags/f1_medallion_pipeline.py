@@ -21,7 +21,7 @@ default_args = {
     'owner': 'f1_data_engineer',
     'depends_on_past': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': timedelta(minutes=2),
 }
 
 @dag(

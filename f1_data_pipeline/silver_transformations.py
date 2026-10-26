@@ -294,15 +294,15 @@ def load_and_enrich_silver_results(engine, logger) -> None:
         FROM bronze_api.raw_data b
         CROSS JOIN LATERAL jsonb_array_elements(b.api_payload->'Results') AS res_node
         JOIN silver.race r 
-            ON r.year = (b.api_payload->>'season')::INT 
-            AND r.round = (b.api_payload->>'round')::INT
+            ON r.year = (SPLIT_PART(b.endpoint, '/', 1))::INT 
+            AND r.round = (SPLIT_PART(b.endpoint, '/', 2))::INT
         JOIN silver.driver d 
             ON d.driver_ref = res_node->'Driver'->>'driverId'
         JOIN silver.constructor c 
             ON c.constructor_ref = res_node->'Constructor'->>'constructorId'
         LEFT JOIN silver.status s 
             ON s.status = res_node->>'status'
-        WHERE b.endpoint = 'results' AND b.is_processed = FALSE
+        WHERE b.endpoint ~ '^[0-9]+/[0-9]+/results$' AND b.is_processed = FALSE
     ) combined_results
     ON CONFLICT (result_id) DO NOTHING;
     """
