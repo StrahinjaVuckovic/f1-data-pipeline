@@ -1,0 +1,8 @@
+confluent-kafka
+requests
+pandas
+sqlalchemy
+psycopg2-binary
+python-dotenv
+apache-airflow-providers-docker
+docker
