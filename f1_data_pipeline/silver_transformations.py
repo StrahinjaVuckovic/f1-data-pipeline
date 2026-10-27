@@ -416,6 +416,19 @@ def load_and_enrich_silver_pit_stops(engine, logger) -> None:
     """
     execute_sql(engine, query)
 
+def get_highest_watermark() -> dict:
+    engine = get_engine()
+    with engine.connect() as conn:
+        query = text("""
+            SELECT 
+                COALESCE(MAX(year), 2024) AS max_year, 
+                COALESCE(MAX(round), 0) AS max_round 
+            FROM silver.race;
+        """)
+        result = conn.execute(query).fetchone()
+        
+    return {"season": result[0], "round": result[1]}
+
 
 def mark_api_data_as_processed(engine, logger) -> None:
     logger.info("Marking API records in bronze_api as processed...")

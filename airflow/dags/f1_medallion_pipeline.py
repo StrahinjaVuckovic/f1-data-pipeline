@@ -3,14 +3,14 @@ import sys
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from airflow.providers.docker.operators.docker import DockerOperator
-from docker.types import Mount
 
 AIRFLOW_HOME = os.getenv("AIRFLOW_HOME", "/opt/airflow")
 if AIRFLOW_HOME not in sys.path:
     sys.path.append(AIRFLOW_HOME)
 
 from f1_data_pipeline.bronze_ingestion import ingest_bronze_data
-from f1_data_pipeline.silver_transformations import transform_silver_layer
+# Importuj novu funkciju ovdje
+from f1_data_pipeline.silver_transformations import transform_silver_layer, get_highest_watermark
 from f1_data_pipeline.gold_transformations import transform_gold_layer
 
 POSTGRES_USER = os.getenv("POSTGRES_USER")
@@ -38,10 +38,14 @@ def f1_medallion_pipeline():
     def ingest_bronze_csv():
         ingest_bronze_data("/opt/airflow/data/dataEngineeringDataset.csv")
 
+    @task()
+    def get_last_processed_race() -> dict:
+        return get_highest_watermark()
+
     produce_api_data = DockerOperator(
         task_id='produce_api_data',
         image='f1-app:latest',
-        command='python f1_data_pipeline/kafka/producer.py',
+        command='python f1_data_pipeline/kafka/producer.py --start-season {{ ti.xcom_pull(task_ids="get_last_processed_race")["season"] }} --start-round {{ ti.xcom_pull(task_ids="get_last_processed_race")["round"] }}',
         network_mode='f1_network', 
         docker_url='unix://var/run/docker.sock',
         auto_remove=True,
@@ -78,7 +82,8 @@ def f1_medallion_pipeline():
 
     csv_task = ingest_bronze_csv()
     
-    api_task = produce_api_data >> consume_api_data
+    watermark_task = get_last_processed_race()
+    api_task = watermark_task >> produce_api_data >> consume_api_data
 
     [csv_task, api_task] >> transform_silver() >> transform_gold()
 
