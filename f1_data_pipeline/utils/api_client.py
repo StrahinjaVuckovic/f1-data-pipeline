@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import requests
+import time
 from typing import List, Dict, Any, Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
@@ -15,6 +16,7 @@ from f1_data_pipeline.utils.logger import get_pipeline_logger
 logger = get_pipeline_logger("f1_api_client")
 
 BASE_URL = "https://api.jolpi.ca/ergast/f1"
+REQUEST_DELAY = 1
 
 session = requests.Session()
 retries = Retry(
@@ -68,6 +70,9 @@ def fetch_f1_data(endpoint: str, limit: int = 1000, offset: int = 0) -> Optional
         records = _extract_records_from_response(mr_data)
 
         logger.info(f"Successfully fetched {len(records)} records from endpoint '{endpoint}'")
+
+        time.sleep(REQUEST_DELAY)
+
         return records
 
     except requests.exceptions.RequestException as e:
