@@ -57,7 +57,7 @@ def get_existing_row_count(engine) -> int:
     return 0
 
 
-def ingest_bronze_data(file_path: str = "/opt/airflow/data/dataEngineeringDataset.csv") -> None:
+def ingest_bronze_data(file_path: str = "/opt/airflow/data/dataEngineeringDataset.csv") -> int:
     """
     Incrementally ingests only NEW records from the CSV file into the bronze table
     by skipping previously processed rows.
@@ -85,7 +85,7 @@ def ingest_bronze_data(file_path: str = "/opt/airflow/data/dataEngineeringDatase
 
     if df.empty:
         logger.info("No new records found in CSV file. Bronze layer is up to date.")
-        return
+        return 0
 
     logger.info(f"New records detected for ingestion: {len(df)}")
 
@@ -102,6 +102,8 @@ def ingest_bronze_data(file_path: str = "/opt/airflow/data/dataEngineeringDatase
     )
 
     logger.info(f"Bronze incremental ingestion completed successfully! Rows appended: {len(df)}")
+
+    return len(df)
 
 
 if __name__ == "__main__":

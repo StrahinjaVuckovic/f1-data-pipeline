@@ -14,16 +14,13 @@ from f1_data_pipeline.utils.logger import get_pipeline_logger
 
 
 def execute_sql(engine, query: str) -> None:
-    """Pomoćna funkcija za bezbedno izvršavanje SQL upita unutar transakcije."""
+   
     with engine.begin() as connection:
         connection.execute(text(query))
 
 
 def truncate_gold_tables(engine, logger) -> None:
-    """
-    Prazni sve Gold tabele pravilnim redosledom (prvo Fact pa Dim)
-    radi očuvanja referencijalnog integriteta (Idempotentnost).
-    """
+   
     logger.info("Truncating all tables in Gold schema...")
     truncate_query = """
         TRUNCATE TABLE 
