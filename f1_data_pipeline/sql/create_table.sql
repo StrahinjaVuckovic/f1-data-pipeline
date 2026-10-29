@@ -35,15 +35,20 @@ CREATE TABLE IF NOT EXISTS dim_circuit (
 );
 
 CREATE TABLE IF NOT EXISTS dim_constructor (
-    constructor_id INT PRIMARY KEY,
+    constructor_sk SERIAL PRIMARY KEY,
+    constructor_id INT NOT NULL,
     constructor_ref VARCHAR(255),
     constructor_name VARCHAR(255),
     nationality VARCHAR(100),
-    url TEXT
+    url TEXT,
+    valid_from TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    valid_to TIMESTAMP WITH TIME ZONE DEFAULT '9999-12-31 23:59:59',
+    is_active BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS dim_driver (
-    driver_id INT PRIMARY KEY,
+    driver_sk SERIAL PRIMARY KEY,
+    driver_id INT NOT NULL,
     driver_ref VARCHAR(255),
     number VARCHAR(50),
     code VARCHAR(10),
@@ -51,7 +56,11 @@ CREATE TABLE IF NOT EXISTS dim_driver (
     surname VARCHAR(255),
     dob DATE,
     nationality VARCHAR(100),
-    url TEXT
+    url TEXT,
+    row_hash VARCHAR(32),
+    valid_from TIMESTAMP WITH TIME ZONE DEFAULT '1900-01-01 00:00:00',
+    valid_to TIMESTAMP WITH TIME ZONE DEFAULT '9999-12-31 23:59:59',
+    is_active BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS dim_race (
@@ -81,8 +90,8 @@ CREATE TABLE IF NOT EXISTS dim_race (
 CREATE TABLE IF NOT EXISTS fact_results (
     result_id INT PRIMARY KEY,
     race_id INT,
-    driver_id INT,
-    constructor_id INT,
+    driver_sk INT,
+    constructor_sk INT, 
     status_id INT,
     number INT,
     grid INT,
@@ -98,34 +107,34 @@ CREATE TABLE IF NOT EXISTS fact_results (
     fastest_lap_time VARCHAR(50),
     fastest_lap_speed FLOAT,
     CONSTRAINT fk_fact_race FOREIGN KEY (race_id) REFERENCES dim_race(race_id),
-    CONSTRAINT fk_fact_driver FOREIGN KEY (driver_id) REFERENCES dim_driver(driver_id),
-    CONSTRAINT fk_fact_constructor FOREIGN KEY (constructor_id) REFERENCES dim_constructor(constructor_id),
+    CONSTRAINT fk_fact_driver FOREIGN KEY (driver_sk) REFERENCES dim_driver(driver_sk),
+    CONSTRAINT fk_fact_constructor FOREIGN KEY (constructor_sk) REFERENCES dim_constructor(constructor_sk), 
     CONSTRAINT fk_fact_status FOREIGN KEY (status_id) REFERENCES dim_status(status_id)
 );
 
 CREATE TABLE IF NOT EXISTS fact_lap_times (
     lap_time_id INT PRIMARY KEY,
     race_id INT NOT NULL,
-    driver_id INT NOT NULL,
+    driver_sk INT NOT NULL,
     lap INT NOT NULL,
     position INT,
     time VARCHAR(50),
     milliseconds FLOAT,
     CONSTRAINT fk_lap_race FOREIGN KEY (race_id) REFERENCES dim_race(race_id),
-    CONSTRAINT fk_lap_driver FOREIGN KEY (driver_id) REFERENCES dim_driver(driver_id)
+    CONSTRAINT fk_lap_driver FOREIGN KEY (driver_sk) REFERENCES dim_driver(driver_sk)
 );
 
 CREATE TABLE IF NOT EXISTS fact_pit_stops (
     pit_stop_id INT PRIMARY KEY,
     race_id INT NOT NULL,
-    driver_id INT NOT NULL,
+    driver_sk INT NOT NULL,
     stop INT NOT NULL,           
     lap INT NOT NULL,            
     time VARCHAR(50),          
     duration VARCHAR(50),        
     milliseconds FLOAT,
     CONSTRAINT fk_pit_race FOREIGN KEY (race_id) REFERENCES dim_race(race_id),
-    CONSTRAINT fk_pit_driver FOREIGN KEY (driver_id) REFERENCES dim_driver(driver_id)
+    CONSTRAINT fk_pit_driver FOREIGN KEY (driver_sk) REFERENCES dim_driver(driver_sk)
 );
 
 SET search_path TO silver;
@@ -177,7 +186,8 @@ CREATE TABLE IF NOT EXISTS driver (
     surname VARCHAR(255),
     dob DATE,
     nationality VARCHAR(100),
-    url TEXT
+    url TEXT,
+    row_hash VARCHAR(32)
 );
 
 CREATE TABLE IF NOT EXISTS race (

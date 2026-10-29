@@ -138,13 +138,13 @@ def load_and_enrich_silver_constructor(engine, logger) -> None:
 
 
 def load_and_enrich_silver_driver(engine, logger) -> None:
-    logger.info("Populating silver.driver (CSV + API Full Outer Merge)")
+    logger.info("Populating silver.driver (CSV + API Full Outer Merge with Checksum)")
     query = """
     WITH max_csv AS (
         SELECT COALESCE(MAX("driverId"::INT), 0) AS max_id FROM bronze.raw_f1_data
     )
     INSERT INTO silver.driver (
-        driver_id, driver_ref, number, code, forename, surname, dob, nationality, url
+        driver_id, driver_ref, number, code, forename, surname, dob, nationality, url, row_hash
     )
     SELECT DISTINCT
         COALESCE(
@@ -158,7 +158,14 @@ def load_and_enrich_silver_driver(engine, logger) -> None:
         COALESCE(api.api_payload->>'familyName', csv."surname") AS surname,
         COALESCE((api.api_payload->>'dateOfBirth')::DATE, NULLIF(csv."dob"::TEXT, '\\N')::DATE) AS dob,
         COALESCE(api.api_payload->>'nationality', csv."nationality") AS nationality,
-        COALESCE(api.api_payload->>'url', csv."url") AS url
+        COALESCE(api.api_payload->>'url', csv."url") AS url,
+        
+        MD5(CONCAT_WS('|', 
+            COALESCE(api.api_payload->>'givenName', csv."forename"), 
+            COALESCE(api.api_payload->>'familyName', csv."surname"), 
+            COALESCE(api.api_payload->>'nationality', csv."nationality")
+        )) AS row_hash
+
     FROM bronze.raw_f1_data csv
     FULL OUTER JOIN bronze_api.raw_data api 
         ON csv."driverRef" = api.api_payload->>'driverId' 
@@ -171,7 +178,8 @@ def load_and_enrich_silver_driver(engine, logger) -> None:
         forename = EXCLUDED.forename,
         surname = EXCLUDED.surname,
         nationality = EXCLUDED.nationality,
-        url = EXCLUDED.url;
+        url = EXCLUDED.url,
+        row_hash = EXCLUDED.row_hash; 
     """
     execute_sql(engine, query)
 
@@ -246,7 +254,7 @@ def load_and_enrich_silver_results(engine, logger) -> None:
         points, laps, time, milliseconds, fastest_lap, rank,
         fastest_lap_time, fastest_lap_speed
     FROM (
-        -- 1. Istorijski rezultati iz CSV-a
+        
         SELECT DISTINCT
             "resultId"::INT AS result_id_orig,
             "raceId"::INT AS race_id, 
@@ -271,7 +279,6 @@ def load_and_enrich_silver_results(engine, logger) -> None:
 
         UNION ALL
 
-        -- 2. Novi rezultati iz API-ja
         SELECT DISTINCT
             NULL::INT AS result_id_orig,
             r.race_id,
@@ -324,7 +331,7 @@ def load_and_enrich_silver_lap_times(engine, logger) -> None:
         time,
         milliseconds
     FROM (
-        -- 1. Istorijski krugovi iz CSV-a
+        
         SELECT DISTINCT
             "raceId"::INT AS race_id,
             "driverId"::INT AS driver_id,
@@ -339,7 +346,6 @@ def load_and_enrich_silver_lap_times(engine, logger) -> None:
 
         UNION ALL
 
-        -- 2. Novi krugovi iz API-ja
         SELECT DISTINCT
             r.race_id,
             d.driver_id,
@@ -378,7 +384,6 @@ def load_and_enrich_silver_pit_stops(engine, logger) -> None:
         duration,
         milliseconds
     FROM (
-        -- 1. Istorijski pit stopovi iz CSV-a
         SELECT DISTINCT
             "raceId"::INT AS race_id,
             "driverId"::INT AS driver_id,
@@ -394,7 +399,6 @@ def load_and_enrich_silver_pit_stops(engine, logger) -> None:
 
         UNION ALL
 
-        -- 2. Novi pit stopovi iz API-ja
         SELECT DISTINCT
             r.race_id,
             d.driver_id,

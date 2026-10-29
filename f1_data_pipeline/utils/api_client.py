@@ -20,8 +20,8 @@ REQUEST_DELAY = 1
 
 session = requests.Session()
 retries = Retry(
-    total=5, # bilo 3
-    backoff_factor=2, # bilo 1
+    total=5, 
+    backoff_factor=2, 
     status_forcelist=[429, 500, 502, 503, 504],
     raise_on_status=False,
     respect_retry_after_header=True
